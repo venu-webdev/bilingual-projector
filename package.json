@@ -12,7 +12,8 @@
     "build": "vite build",
     "start": "vite build && electron .",
     "dist": "vite build && electron-builder --win",
-    "test": "node --test tests/lyrics.test.mjs"
+    "test": "node --test tests/lyrics.test.mjs",
+    "dist:linux": "vite build && electron-builder --linux"
   },
   "build": {
     "appId": "com.bilingual.projector.next",
@@ -52,11 +53,37 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Bilingual Projector",
-      "artifactName": "Bilingual-Projector-Setup-${version}.exe",
+      "artifactName": "Bilingual-Projector-Setup-x64.${ext}",
       "runAfterFinish": true
     },
     "portable": {
-      "artifactName": "Bilingual-Projector-Portable-${version}.exe"
+      "artifactName": "Bilingual-Projector-Portable-x64.${ext}"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "category": "Office",
+      "synopsis": "Telugu and English Bible and song projector",
+      "maintainer": "venu-webdev <venu-webdev@users.noreply.github.com>"
+    },
+    "appImage": {
+      "artifactName": "Bilingual-Projector-x86_64.${ext}"
+    },
+    "deb": {
+      "artifactName": "Bilingual-Projector-amd64.${ext}"
     }
   },
   "devDependencies": {
@@ -71,5 +98,14 @@
     "@fontsource/noto-sans-telugu": "^5.3.0",
     "@fontsource/ramabhadra": "^5.3.0"
   },
-  "author": "Bilingual Projector"
+  "author": {
+    "name": "venu-webdev",
+    "email": "venu-webdev@users.noreply.github.com"
+  },
+  "license": "MIT",
+  "homepage": "https://venu-webdev.github.io/bilingual-projector/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/venu-webdev/bilingual-projector.git"
+  }
 }

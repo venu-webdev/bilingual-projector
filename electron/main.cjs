@@ -11,6 +11,11 @@ const pictures = require('./pictures.cjs');
 const DEV_URL = process.env.PROJECTOR_DEV_URL; // set by scripts/dev.mjs
 const DIST = path.join(__dirname, '..', 'dist');
 
+// Linux AppImage: newer Ubuntu (24.04 on) blocks the sandbox helper an AppImage cannot install, and the
+// app would not start at all. Only the AppImage turns Chromium's system sandbox off; the .deb installs the
+// helper properly and keeps it. The pages stay isolated either way (contextIsolation, no Node in pages).
+if (process.platform === 'linux' && process.env.APPIMAGE) app.commandLine.appendSwitch('no-sandbox');
+
 protocol.registerSchemesAsPrivileged([
   { scheme: 'app', privileges: { standard: true, secure: true, supportFetchAPI: true } },
   { scheme: 'media', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } },

@@ -1,13 +1,20 @@
-# Bilingual Projector (next)
+# Bilingual Projector
 
-A fast Telugu and English Bible and song projector for church services. A rebuild of Bilingual Projector Pro with a cleaner screen for the operator. The old app in `../experiment` is untouched.
+A free, open-source projector for church services in Telugu and English: the Bible, songs pasted in any format, pictures, a stage screen for the pastor and a livestream overlay for OBS. For Windows and Linux.
+
+**Download:** https://venu-webdev.github.io/bilingual-projector/
+(or the files directly from the [latest release](https://github.com/venu-webdev/bilingual-projector/releases/latest))
+
+| System | File |
+|---|---|
+| Windows 10 / 11 | `Bilingual-Projector-Setup-x64.exe` (installer) or `Bilingual-Projector-Portable-x64.exe` |
+| Linux, most distributions | `Bilingual-Projector-x86_64.AppImage`: make it executable (`chmod +x`), then run it |
+| Ubuntu, Debian, Mint | `Bilingual-Projector-amd64.deb`: `sudo apt install ./Bilingual-Projector-amd64.deb` |
 
 ## Install on Windows 10 / 11
 
-`npm run dist` builds two files in `release/`:
-
-- `Bilingual-Projector-Setup-<version>.exe` installs the app with Start menu and desktop shortcuts, and lets you choose the folder.
-- `Bilingual-Projector-Portable-<version>.exe` runs without installing (from a USB stick, for example).
+- `Bilingual-Projector-Setup-x64.exe` installs the app with Start menu and desktop shortcuts, and lets you choose the folder.
+- `Bilingual-Projector-Portable-x64.exe` runs without installing (from a USB stick, for example).
 
 The files are not code-signed, so the first time Windows SmartScreen may say "Windows protected your PC": choose *More info*, then *Run anyway*. Songs, pictures and settings live in `%APPDATA%\Bilingual Projector`, so reinstalling or updating never loses them.
 
@@ -75,3 +82,18 @@ The Bible (`public/bible.json`, Telugu BSI and KJV) is in the repository, so a f
 ## Next
 
 LAN control from phones, Telugu voice search, a live text editor, and an installer icon.
+
+## Publishing a version
+
+Pushing a tag builds every download on GitHub (`.github/workflows/release.yml`) and attaches them to a release; the website's buttons always point at the latest one.
+
+```
+npm version patch        # or minor, major: updates package.json and makes the tag
+git push && git push --tags
+```
+
+The website is `docs/`, served by GitHub Pages from the `main` branch.
+
+## Licence
+
+MIT, see [LICENSE](LICENSE). The Bible texts (the Telugu Bible, BSI, and the King James Version) are bundled as data.
