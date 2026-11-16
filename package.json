@@ -1,0 +1,75 @@
+{
+  "name": "projector-next",
+  "productName": "Bilingual Projector",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Fast Telugu and English Bible and song projector for church services",
+  "type": "module",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "bible": "node scripts/build-bible.mjs",
+    "dev": "node scripts/dev.mjs",
+    "build": "vite build",
+    "start": "vite build && electron .",
+    "dist": "vite build && electron-builder --win",
+    "test": "node --test tests/lyrics.test.mjs"
+  },
+  "build": {
+    "appId": "com.bilingual.projector.next",
+    "productName": "Bilingual Projector",
+    "copyright": "Bilingual Projector",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "electron/**",
+      "dist/**",
+      "package.json"
+    ],
+    "asar": true,
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Bilingual Projector",
+      "artifactName": "Bilingual-Projector-Setup-${version}.exe",
+      "runAfterFinish": true
+    },
+    "portable": {
+      "artifactName": "Bilingual-Projector-Portable-${version}.exe"
+    }
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^4.0.4",
+    "electron": "^33.4.11",
+    "electron-builder": "^25.1.8",
+    "svelte": "^5.57.3",
+    "vite": "^5.4.21",
+    "@fontsource/hind-guntur": "^5.3.0",
+    "@fontsource/inter": "^5.3.0",
+    "@fontsource/mandali": "^5.3.0",
+    "@fontsource/noto-sans-telugu": "^5.3.0",
+    "@fontsource/ramabhadra": "^5.3.0"
+  },
+  "author": "Bilingual Projector"
+}
