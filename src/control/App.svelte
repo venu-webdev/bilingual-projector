@@ -1,7 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import { loadBible } from '../lib/bible.js';
-  import { lib, show, init, save, toast, next, prev, toggleBlack, toggleHidden, bringBack, jumpTo, startOutput, stopOutput, frameOf, upcoming, migrate, reloadSoon, newSong, toggleStream, addPictureFiles, stageFrame, toggleSplit } from './state.svelte.js';
+  import { lib, show, init, save, toast, next, prev, toggleBlack, toggleHidden, bringBack, jumpTo, startOutput, stopOutput, frameOf, upcoming, migrate, reloadSoon, newSong, toggleStream, addPictureFiles, stageFrame, toggleSplit, remoteFrame, remoteCommand } from './state.svelte.js';
   import { parseLyrics } from '../lib/lyrics.js';
   import { loadThemeFonts } from '../lib/fit.js';
   import Icon from './Icon.svelte';
@@ -23,6 +23,7 @@
       await Promise.all([init(), loadBible().then(() => (bibleReady = true))]);
     } catch (e) { failed = String(e.message || e); }
     window.projector.output.onKey(handleKey);
+    window.projector.remote.onCommand(remoteCommand);
   });
 
   // Whatever is live goes to the output window whenever it changes.
@@ -36,6 +37,12 @@
   $effect(() => {
     if (!lib.ready) return;
     window.projector.stage.sendFrame($state.snapshot(stageFrame()));
+  });
+
+  // The phone remote sees the screen and the open item's slides.
+  $effect(() => {
+    if (!lib.ready) return;
+    window.projector.remote.sendFrame($state.snapshot(remoteFrame()));
   });
 
   // The livestream overlay (OBS) follows the live slide with its own settings.

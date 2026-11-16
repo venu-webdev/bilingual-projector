@@ -2,6 +2,7 @@
   import Stage from '../lib/Stage.svelte';
   import Overlay from '../lib/Overlay.svelte';
   import StageScreen from '../lib/StageScreen.svelte';
+  import QRCode from 'qrcode';
   import { lib, show, save, next, prev, toggleBlack, toggleHidden, bringBack, upcoming, frameOf, startStage, stopStage, toggleStream, toast, stageFrame } from './state.svelte.js';
   import Icon from './Icon.svelte';
 
@@ -24,6 +25,21 @@
   const toggleCompact = () => { lib.settings.ui = { ...(lib.settings.ui || {}), compactPreviews: !compact }; save('settings'); };
   let info = $state({ url: '', clients: 0, lan: { on: false, addresses: [] } });
   let lanBusy = $state(false);
+  // the phone remote: off until switched on; a new PIN each time
+  let remote = $state({ on: false, pin: '', addresses: [], local: '' });
+  let qr = $state('');
+  const phoneUrl = $derived(remote.addresses[0]?.url || '');
+  $effect(() => {
+    const u = phoneUrl, p = remote.pin;
+    if (!remote.on || !u) { qr = ''; return; }
+    QRCode.toDataURL(`${u}#pin=${p}`, { margin: 1, width: 360, color: { dark: '#0d0f12', light: '#ffffff' } }).then((d) => (qr = d)).catch(() => (qr = ''));
+  });
+  async function setRemote(on) {
+    remote = await window.projector.remote.set(on);
+    info = await window.projector.overlay.info();
+    if (on && !remote.addresses.length) toast('The remote is on, but this computer is not on a network. Connect it to the church Wi-Fi.', 'bad');
+    else if (on) toast('Phone remote on. Scan the code with the phone camera.', 'ok');
+  }
   // How many OBS sources are connected, checked every few seconds while the Stream tab is open.
   $effect(() => {
     if (tab !== 'stream') return;
@@ -102,6 +118,9 @@
     </button>
     <button role="tab" aria-selected={tab === 'stage'} onclick={() => (tab = 'stage')}>
       Stage {#if show.stage.open}<span class="pill on">open</span>{/if}
+    </button>
+    <button role="tab" aria-selected={tab === 'phone'} onclick={() => (tab = 'phone')}>
+      Phone {#if remote.on}<span class="pill on">on</span>{/if}
     </button>
   </div>
   <button class="grow-btn" onclick={toggleCompact} aria-pressed={compact} title={compact ? 'Bring the previews back to full size' : 'Shrink the previews to give these settings more room'}>{compact ? '▼ Previews' : '▲ More room'}</button>
@@ -206,7 +225,7 @@
         </div>
         {#if info.lan?.on}
           {#each info.lan.addresses as a (a.overlay)}
-            <div class="lan__net muted">{a.name}</div>
+            <div class="lan__net muted">{a.name}{#if a.kind !== 'network'} <span class="tag-k">{a.kind === 'vpn' ? 'VPN: other devices on the Wi-Fi cannot use this' : 'virtual network on this PC'}</span>{/if}</div>
             <div class="url"><span class="kind">Overlay</span><code class="mono">{a.overlay}</code><button class="btn btn--sm" onclick={() => copy(a.overlay)}>Copy</button></div>
             <div class="url"><span class="kind">Full screen</span><code class="mono">{a.screen}</code><button class="btn btn--sm" onclick={() => copy(a.screen, 'Full screen address')}>Copy</button></div>
           {:else}
@@ -222,6 +241,37 @@
           <div class="muted">Off: only OBS on this laptop can see the overlay. Turn it on when the streaming computer is a different machine. Other computers can only view, never control.</div>
         {/if}
       </div>
+    </div>
+  {:else if tab === 'phone'}
+    <div class="tune">
+      <div class="tune__head stage-head">
+        <span>Phone remote: next, previous, black and the slides, from a phone</span>
+        <span class="seg">
+          <button aria-pressed={!remote.on} onclick={() => setRemote(false)}>Off</button>
+          <button aria-pressed={remote.on} onclick={() => setRemote(true)}>On</button>
+        </span>
+      </div>
+      {#if remote.on}
+        <div class="phone">
+          {#if qr}<img class="qr" src={qr} alt="QR code that opens the remote on a phone, already unlocked" width="180" height="180" />{/if}
+          <div class="phone__t">
+            <div class="lbl">PIN</div>
+            <div class="pin mono">{remote.pin.slice(0, 3)} {remote.pin.slice(3)}</div>
+            <ol class="steps">
+              <li>Phone on the same Wi-Fi as this computer.</li>
+              <li>Scan the code with the phone camera: it opens unlocked.</li>
+              <li>Or open the address below and type the PIN.</li>
+            </ol>
+            <button class="btn btn--sm" onclick={() => setRemote(true)}>New PIN</button>
+          </div>
+        </div>
+        {#each remote.addresses as a (a.url)}
+          <div class="url mono-row"><span class="kind" title={a.name}>{a.kind === 'vpn' ? 'VPN' : a.kind === 'virtual' ? 'Virtual' : 'Wi-Fi / LAN'}</span><code class="mono">{a.url}</code><button class="btn btn--sm" onclick={() => copy(a.url, 'Remote address')}>Copy</button></div>
+        {/each}
+        <p class="why">Anyone on the Wi-Fi can open the address and watch; only someone with the PIN can change the screen. Switching off ends it at once.</p>
+      {:else}
+        <p class="why">Off. Switch on to control the slides from a phone, for example from the front of the church.</p>
+      {/if}
     </div>
   {:else}
     <div class="tune">
@@ -310,7 +360,7 @@
   .cut .black { border-color: var(--bad-line); color: var(--bad); background: var(--bad-soft); }
   .cut .black.on { background: var(--bad); color: oklch(18% 0.03 25); }
   .cut .btn.on:not(.black) { background: var(--next-soft); border-color: var(--next-line); color: var(--next); }
-  .tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; padding: 3px; background: var(--paper-3); border: 1px solid var(--rule); border-radius: var(--r-ctl); margin-bottom: -6px; flex: none; position: sticky; top: 0; z-index: 2; }
+  .tabs { display: grid; grid-template-columns: repeat(4, auto); gap: 2px; padding: 3px; background: var(--paper-3); border: 1px solid var(--rule); border-radius: var(--r-ctl); margin-bottom: -6px; flex: none; position: sticky; top: 0; z-index: 2; }
   .tabs button { height: 30px; border: 0; border-radius: 4px; background: transparent; color: var(--muted); font-weight: 500; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
   .tabs button[aria-selected="true"] { background: var(--paper-2); color: var(--ink); box-shadow: inset 0 0 0 1px var(--rule-2); }
   .pill { font-size: 10px; padding: 1px 5px; border-radius: 3px; border: 1px solid var(--rule-2); color: var(--muted); }
@@ -327,6 +377,13 @@
   .step .mono { min-width: 44px; text-align: center; font-size: 12px; }
   .stage-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--ink-2); }
   .field.mini { height: 28px; width: auto; max-width: 60%; font-size: 12px; }
+  .phone { display: flex; gap: 14px; padding: 12px; align-items: flex-start; }
+  .qr { width: 180px; height: 180px; border-radius: 8px; background: #fff; flex: none; image-rendering: pixelated; }
+  .phone__t { display: grid; gap: 6px; }
+  .phone .lbl { color: var(--muted); font-size: 12px; }
+  .pin { font-size: 34px; font-weight: 600; letter-spacing: 0.08em; color: var(--live); line-height: 1.1; }
+  .mono-row { padding: 0 12px 8px; }
+  .tag-k { color: var(--bad); font-size: 11px; }
   .stage-pv { position: relative; aspect-ratio: 16 / 9; margin: 10px 12px; border-radius: 6px; overflow: hidden; outline: 1px solid var(--rule-2); outline-offset: 2px; }
   .stage-pv.on { outline-color: var(--next); }
   .why { margin: -2px 12px 6px; color: var(--muted); font-size: 12px; }

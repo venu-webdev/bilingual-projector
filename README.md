@@ -35,7 +35,7 @@ Other commands:
 npm run dev        # development, with hot reload
 npm run dist       # Windows installer and portable .exe in release/
 npm test           # the lyrics parser tests
-npm run bible -- <folder>   # rebuild public/bible.json from BSI_bible.xml + kjv.json in <folder>
+npm run bible -- <telugu.xml>   # rebuild public/bible.json (English from data/kjv.csv)
 ```
 
 The Bible (`public/bible.json`, Telugu BSI and KJV) is in the repository, so a fresh clone runs as it is.
@@ -46,6 +46,7 @@ The Bible (`public/bible.json`, Telugu BSI and KJV) is in the repository, so a f
 - **Click a slide** to put it on screen. `Space`, `→` or a clicker's Page Down shows the next one; `←` goes back. Type `16` then `Enter` to jump to verse 16.
 - **On screen / Next**: the right column shows exactly what the room sees and what comes next, drawn by the same code as the projector.
 - **Black screen** `B`, **Hide text** `C` (keeps the background), **Bring back** `R`. Always visible.
+- **Phone remote** (Output panel, *Phone*): switch it on and scan the QR code with a phone on the same Wi-Fi. The phone shows the screen as the room sees it, with Next, Previous, Black, Hide text, Bring back and the open item's slides to tap. Anyone on the network can open the page and watch; changing the screen needs the 6-digit PIN shown in the app (the QR code carries it, after the `#`, so it never reaches the network). A new PIN is made every time the remote is switched on, five wrong PINs lock that device out for a minute, and *Off* ends it at once. The address list puts the computer's real network first and marks VPNs (Cloudflare WARP, Tailscale) and virtual networks, which other devices cannot reach.
 - **History**: double-click a verse (in the slides or the search results) to keep it in *History*, beside the service order, with the time. Name each one (✎) so you remember what it was for, add it to the service order (+), or click it to show it again. History is saved.
 - **Service order**: open a passage or song, press *Add to order*, drag to reorder. Several orders can be kept.
 - **Songs, pasted from anywhere**: copy lyrics from a website, WhatsApp, Word or the old app, then press `Ctrl V` anywhere outside a text box (or *Paste a song* in Songs). The slides appear straight away. `Ctrl Enter` saves the song and puts it on screen. The parser (`src/lib/lyrics.js`, tests in `tests/`):
@@ -77,7 +78,12 @@ The Bible (`public/bible.json`, Telugu BSI and KJV) is in the repository, so a f
 
 ## Bible data
 
-`npm run bible` removes the translators' margin notes that `kjv.json` carries on about 6,400 verses (for example "wrath: Heb. wraths"). It also warns about 11 chapters where `kjv.json` and the Telugu Bible have different verse counts. In most of these (Matthew 2, Mark 7, Revelation 12 and others) `kjv.json` has a missing or extra verse, so the English sits beside the wrong Telugu verse from that point on. A corrected public-domain KJV file would fix them.
+`public/bible.json` is built by `npm run bible` from two sources:
+
+- **English:** `data/kjv.csv`, the King James Version from [scrollmapper/bible_databases](https://github.com/scrollmapper/bible_databases) (public domain text, MIT-licensed data), all 31,102 verses. It replaced an older `kjv.json` that was missing or doubling verses in 10 chapters (Matthew 2, 22, 26, Mark 4, 7, 8, 1 Samuel 20, 1 Kings 22, 3 John, Revelation 12) and carried translators' margin notes on about 6,400 verses.
+- **Telugu:** the BSI Telugu Bible XML (`data/telugu.xml`, or `../experiment/BSI_bible.xml`). Known issues in that file: Exodus 7:25 is missing (that verse shows in English only), and in Matthew 2:20 to 23 the verse boundaries are shifted. A cleaner Telugu source would fix both.
+
+Book names and abbreviations in both languages are in `data/books.json`.
 
 ## Next
 

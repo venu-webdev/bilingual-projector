@@ -182,10 +182,18 @@ app.whenReady().then(() => {
   ipcMain.handle('output:status', () => status());
   ipcMain.on('output:frame', (_e, frame) => { lastFrame = frame; if (output && !output.isDestroyed()) output.webContents.send('output:frame', frame); });
   // the livestream overlay for OBS
-  overlay = startOverlayServer(DIST, { media: mediaDir() });
+  overlay = startOverlayServer(DIST, { media: mediaDir(), onRemote: (cmd) => send('remote:cmd', cmd) });
   ipcMain.handle('overlay:info', () => ({ url: overlay.url, clients: overlay.clients(), lan: overlay.lanInfo() }));
   // OBS on another computer: a read-only listener on the network, only while the operator has it on
   ipcMain.handle('overlay:lan', (_e, on) => overlay.setLan(!!on));
+  // the phone remote: on means the network listener is on too (the phone reaches it over Wi-Fi)
+  ipcMain.handle('remote:set', async (_e, on) => {
+    if (on) await overlay.setLan(true);
+    overlay.setRemote(!!on);
+    return overlay.remoteInfo();
+  });
+  ipcMain.handle('remote:info', () => overlay.remoteInfo());
+  ipcMain.on('remote:frame', (_e, frame) => overlay.sendRemote(frame));
   if (store.get().settings.stream && store.get().settings.stream.lan) overlay.setLan(true);
   ipcMain.on('overlay:frame', (_e, frame) => overlay.send(frame));
 

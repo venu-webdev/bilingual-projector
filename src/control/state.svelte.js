@@ -448,3 +448,31 @@ export function toggleSplit() {
   reloadDeck();
   toast(lib.settings.split === 'none' ? 'Long verses now shrink to fit on one slide' : 'Long verses now continue on a new slide', 'ok');
 }
+
+// ---------- the phone remote ----------
+// What a phone sees: the screen as the room sees it, and the open item's slides to tap.
+export function remoteFrame() {
+  const f = frameOf(show.live?.slide);
+  const d = show.deck;
+  const nx = upcoming();
+  return {
+    screen: { ...(f || {}), theme: f?.theme || lib.settings.themes.bible, black: show.black, hidden: show.hidden },
+    live: show.live ? { refEn: show.live.slide.refEn, refTe: show.live.slide.refTe, kind: show.live.slide.kind } : null,
+    next: nx ? { refEn: nx.refEn } : null,
+    deck: d ? { title: d.title, slides: d.slides.slice(0, 800).map((s, i) => ({ i, num: s.num, line: (s.kind === 'image' ? s.label : (s.te || s.en || '').split('\n')[0]).slice(0, 90) })) } : null,
+    deckIsLive: !!(d && show.live && show.live.deckKey === d.key),
+    liveIndex: show.live ? show.live.index : null,
+    black: show.black, hidden: show.hidden,
+  };
+}
+
+// A command from the phone (already checked against the PIN by the main process).
+export function remoteCommand({ action, index }) {
+  if (action === 'next') next();
+  else if (action === 'prev') prev();
+  else if (action === 'black') toggleBlack();
+  else if (action === 'hide') toggleHidden();
+  else if (action === 'back') bringBack();
+  else if (action === 'stream') toggleStream();
+  else if (action === 'go' && show.deck && show.deck.slides[index]) goLive(index);
+}

@@ -1,18 +1,24 @@
-// One-time conversion: Telugu BSI XML + KJV JSON -> public/bible.json, a compact index the app loads in one fetch.
-//   npm run bible -- [path to the folder holding BSI_bible.xml, kjv.json and src/bible-metadata.js]
-// Default source folder is the original app at ../experiment.
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+// One-time conversion: the Telugu Bible (BSI, XML) + the King James Version (CSV) -> public/bible.json,
+// a compact index the app loads in one fetch.
+//
+//   npm run bible                       Telugu from data/telugu.xml, else ../experiment/BSI_bible.xml
+//   npm run bible -- <telugu.xml>       Telugu from another file
+//
+// English: data/kjv.csv, the King James Version from scrollmapper/bible_databases (public domain text,
+// MIT-licensed data), with all 31,102 verses. It replaced an older kjv.json that had verses missing or
+// doubled in 10 chapters (Matthew 2, Mark 7, ...) and translators' margin notes on about 6,400 verses.
+// Book names (English, Telugu, abbreviations): data/books.json.
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
-import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const SRC = resolve(process.argv[2] || join(ROOT, '..', 'experiment'));
-const meta = createRequire(import.meta.url)(join(SRC, 'src', 'bible-metadata.js'));
+const TE = resolve(process.argv[2] || [join(ROOT, 'data', 'telugu.xml'), join(ROOT, '..', 'experiment', 'BSI_bible.xml')].find((f) => existsSync(f)) || '');
+if (!existsSync(TE)) { console.error('No Telugu Bible XML found. Put it at data/telugu.xml or pass its path: npm run bible -- <file>'); process.exit(1); }
+const meta = JSON.parse(readFileSync(join(ROOT, 'data', 'books.json'), 'utf8'));
 
-const xml = readFileSync(join(SRC, 'BSI_bible.xml'), 'utf8').replace(/^﻿/, '');
-const kjv = JSON.parse(readFileSync(join(SRC, 'kjv.json'), 'utf8').replace(/^﻿/, ''));
-
+// ---- Telugu ----
+const xml = readFileSync(TE, 'utf8').replace(/^﻿/, '');
 const decode = (s) => s.replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
 const telugu = new Map();
 for (const [, bn, body] of xml.matchAll(/<BIBLEBOOK\s+bnumber="(\d+)"[^>]*>([\s\S]*?)<\/BIBLEBOOK>/g)) {
@@ -25,57 +31,64 @@ for (const [, bn, body] of xml.matchAll(/<BIBLEBOOK\s+bnumber="(\d+)"[^>]*>([\s\
   telugu.set(Number(bn), chapters);
 }
 
-// This KJV file carries the translators' margin notes on the end of about one verse in five
-// ("...the thing accursed. Achar: or, Achan"). They are not scripture and must not reach the screen.
-// A note starts with a key word (sometimes "words...") then a colon and Heb. / or, / that is, ...; the verse
-// ends at the last punctuation before the first note.
-const NOTE = /\s[A-Za-z’'-]+(?:\.\.\.)?(?:\s[A-Za-z’'-]+\.\.\.)?:\s(?:Heb\.|or,|Or,|Gr\.|Chald\.|Syr\.|that is,|i\.e\.|Gk\.)/;
-function stripNotes(s) {
-  const m = NOTE.exec(s);
-  if (!m) return s;
-  const head = s.slice(0, m.index);
-  const end = Math.max(...['.', '?', '!', ';', ':', ',', ')'].map((p) => head.lastIndexOf(p)));
-  return (end > 0 ? head.slice(0, end + 1) : head).trim();
+// ---- English: a small CSV reader (quoted fields, doubled quotes) ----
+function* csvRows(text) {
+  let i = 0, field = '', row = [], quoted = false;
+  while (i < text.length) {
+    const c = text[i];
+    if (quoted) {
+      if (c === '"' && text[i + 1] === '"') { field += '"'; i += 2; continue; }
+      if (c === '"') { quoted = false; i++; continue; }
+      field += c; i++; continue;
+    }
+    if (c === '"') { quoted = true; i++; continue; }
+    if (c === ',') { row.push(field); field = ''; i++; continue; }
+    if (c === '\n' || c === '\r') { if (c === '\r' && text[i + 1] === '\n') i++; row.push(field); yield row; row = []; field = ''; i++; continue; }
+    field += c; i++;
+  }
+  if (field || row.length) { row.push(field); yield row; }
 }
-let notesRemoved = 0;
-// KJV marks supplied words with braces ({was}); keep the word, drop the braces.
-const clean = (s) => {
-  const t = (s || '').replace(/[{}]/g, '').replace(/\s+/g, ' ').trim();
-  const u = stripNotes(t);
-  if (u !== t) notesRemoved++;
-  return u;
-};
+const english = new Map(); // book number -> chapters[] -> verses[]
+const bookOrder = [];
+let header = true;
+for (const [book, ch, vs, text] of csvRows(readFileSync(join(ROOT, 'data', 'kjv.csv'), 'utf8').replace(/^﻿/, ''))) {
+  if (header) { header = false; continue; }
+  if (!book) continue;
+  if (!bookOrder.includes(book)) bookOrder.push(book);
+  const n = bookOrder.indexOf(book) + 1; // the CSV runs Genesis to Revelation in canonical order
+  if (!english.has(n)) english.set(n, []);
+  const chapters = english.get(n);
+  (chapters[Number(ch) - 1] ||= [])[Number(vs) - 1] = text.replace(/\s+/g, ' ').trim();
+}
+if (bookOrder.length !== 66) { console.error(`kjv.csv has ${bookOrder.length} books, expected 66`); process.exit(1); }
 
+// ---- merge ----
 let verseCount = 0;
 const books = meta.map((m) => {
-  const te = telugu.get(m.number) || [];
-  const en = (kjv[m.number - 1] && kjv[m.number - 1].chapters) || [];
-  const chapters = Math.max(te.length, en.length);
+  const te = telugu.get(m.n) || [], en = english.get(m.n) || [];
   const ch = [];
-  for (let c = 0; c < chapters; c++) {
+  for (let c = 0; c < Math.max(te.length, en.length); c++) {
     const tv = te[c] || [], ev = en[c] || [];
-    const n = Math.max(tv.length, ev.length);
     const rows = [];
-    for (let v = 0; v < n; v++) rows.push([tv[v] || '', clean(ev[v])]);
-    verseCount += n;
+    for (let v = 0; v < Math.max(tv.length, ev.length); v++) rows.push([tv[v] || '', ev[v] || '']);
+    verseCount += rows.length;
     ch.push(rows);
   }
-  return { n: m.number, en: m.name, te: m.teluguName, teShort: m.teluguShort, abbr: m.abbr, teAbbr: m.teluguAbbr, ch };
+  return { ...m, ch };
 });
 
 mkdirSync(join(ROOT, 'public'), { recursive: true });
 const out = join(ROOT, 'public', 'bible.json');
-writeFileSync(out, JSON.stringify({ version: 1, books }));
-console.log(`wrote ${out}: ${books.length} books, ${verseCount} verses, margin notes removed from ${notesRemoved}`);
+writeFileSync(out, JSON.stringify({ version: 2, books }));
+console.log(`wrote ${out}: ${books.length} books, ${verseCount} verses (Telugu from ${TE})`);
 
-// Chapters where the two Bibles have a different number of verses: the English after the gap is
-// out of step with the Telugu. Some are real numbering differences, most are faults in kjv.json.
+// Chapters where the two Bibles differ in verse count: a verse there shows in one language only.
 const uneven = [];
 for (const m of meta) {
-  const te = telugu.get(m.number) || [], en = (kjv[m.number - 1] && kjv[m.number - 1].chapters) || [];
+  const te = telugu.get(m.n) || [], en = english.get(m.n) || [];
   for (let c = 0; c < Math.max(te.length, en.length); c++) {
     const a = (te[c] || []).length, b = (en[c] || []).length;
-    if (a !== b) uneven.push(`${m.name} ${c + 1} (Telugu ${a}, English ${b})`);
+    if (a !== b) uneven.push(`${m.en} ${c + 1} (Telugu ${a}, English ${b})`);
   }
 }
-if (uneven.length) console.warn(`\nwarning: ${uneven.length} chapters have different verse counts, so their English may sit beside the wrong Telugu verse:\n  ${uneven.join('\n  ')}`);
+if (uneven.length) console.warn(`note: ${uneven.length} chapter(s) differ in verse count; the extra verse shows in one language:\n  ${uneven.join('\n  ')}`);

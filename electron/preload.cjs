@@ -37,6 +37,12 @@ contextBridge.exposeInMainWorld('projector', {
     setLan: (on) => ipcRenderer.invoke('overlay:lan', on),
     sendFrame: (frame) => ipcRenderer.send('overlay:frame', frame),
   },
+  remote: {
+    set: (on) => ipcRenderer.invoke('remote:set', on),
+    info: () => ipcRenderer.invoke('remote:info'),
+    sendFrame: (frame) => ipcRenderer.send('remote:frame', frame),
+    onCommand: on('remote:cmd'),
+  },
   stage: {
     open: (displayId) => ipcRenderer.invoke('stage:open', displayId),
     close: () => ipcRenderer.invoke('stage:close'),
