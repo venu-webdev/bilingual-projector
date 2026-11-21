@@ -2,7 +2,7 @@
 
 A free, open-source projector for church services in Telugu and English: the Bible, songs pasted in any format, pictures, a stage screen for the pastor and a livestream overlay for OBS. For Windows and Linux.
 
-**Download:** https://venu-webdev.github.io/bilingual-projector/
+**Download:** https://projector.kingofold.com/
 (or the files directly from the [latest release](https://github.com/venu-webdev/bilingual-projector/releases/latest))
 
 | System | File |
